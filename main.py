@@ -27,6 +27,15 @@ def get_gitid():
     success = "success"
     return jsonify({"result":success})
 
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'image' not in request.files:
+        return '이미지가 전송되지 않았습니다!', 400
+
+    image = request.files['image']
+    image.save(image.filename) # 이미지를 현재 작업 디렉토리에 저장합니다.
+    return '이미지가 업로드되었습니다!', 200
+
 @app.route('/menus') # methods = : default값 : GET
 def get_menus(): # 해당 함수 return 값이 http return값으로 들어감
     # connect with db
