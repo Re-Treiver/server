@@ -10,11 +10,11 @@ app = Flask(__name__)
 api = Api(app)
 app.config['JSON_AS_ASCII'] = False
 
-# 데이터베이스 연결 정보 하드코딩
-DB_URL = "127.0.0.1"
-DB_USER = "root"
-DB_PASS = "your_password"  # MySQL root 비밀번호
-DB_NAME = "re_triver_test"
+# 환경 변수에서 데이터베이스 연결 정보 가져오기
+DB_URL = os.getenv('DB_URL', '127.0.0.1')
+DB_USER = os.getenv('DB_USER', 'root')
+DB_PASS = os.getenv('DB_PASS', 'your_password')  # 안전한 저장소에 실제 비밀번호 저장
+DB_NAME = os.getenv('DB_NAME', 're_triver_test')
 
 def connection():
     return mysql.connector.connect(
@@ -58,19 +58,28 @@ class UploadImage(Resource):
             return {"isUploadSuccess": "false"}, 400
         image = request.files['image']
         image_path = os.path.join("uploads", image.filename)
-        image.save(image_path)  # 이미지를 현재 작업 디렉토리에 저장합니다.
+        try:
+            image.save(image_path)  # 이미지를 현재 작업 디렉토리에 저장합니다.
+        except Exception as e:
+            return {"isUploadSuccess": "false", "error": str(e)}, 500
 
         # 객체 검출 수행
-        detections = detect_objects(image_path)
+        try:
+            detections = detect_objects(image_path)
+        except Exception as e:
+            return {"isUploadSuccess": "false", "error": str(e)}, 500
 
         # 결과를 텍스트 파일로 저장
         result_file_path = os.path.join("results", f"{os.path.splitext(image.filename)[0]}.txt")
-        with open(result_file_path, 'w', encoding='utf-8') as f:
-            for _, row in detections.iterrows():
-                object_name = row['name']
-                recycle_method = get_recycle_method(object_name)
-                f.write(f"Object: {object_name}\n")
-                f.write(f"Recycle Method: {recycle_method}\n\n")
+        try:
+            with open(result_file_path, 'w', encoding='utf-8') as f:
+                for _, row in detections.iterrows():
+                    object_name = row['name']
+                    recycle_method = get_recycle_method(object_name)
+                    f.write(f"Object: {object_name}\n")
+                    f.write(f"Recycle Method: {recycle_method}\n\n")
+        except Exception as e:
+            return {"isUploadSuccess": "false", "error": str(e)}, 500
 
         return send_file(result_file_path, as_attachment=True), 200
 
@@ -79,4 +88,7 @@ if __name__ == '__main__':
         os.makedirs("uploads")
     if not os.path.exists("results"):
         os.makedirs("results")
-    app.run(debug=True)
+
+    # API 초기화
+    api.init_app(app)
+    app.run(debug=True)e)
